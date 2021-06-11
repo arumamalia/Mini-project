@@ -1,0 +1,49 @@
+# We have 2 stage Test and Deploy
+stages:
+  - test
+  - deploy
+
+# Config cache
+cache:
+  paths:
+    - node_modules/
+
+# Test job
+test:
+  # Docker image
+  image: node:latest
+  # Attach Test job to Test stage
+  stage: test
+  # Config to use GitLab Shared Runner with Executor Docker
+  tags:
+    - docker
+  script:
+    - echo "MONGO_URI"=$ENVIRONMENT_TEST_MONGO_URI > .env.test
+    - echo "JWT_SECRET"=$ENVIRONMENT_TEST_JWT_SECRET >> .env.test
+    - echo "PUBLIC_URL"=$PUBLIC_URL >> .env.production
+    - npm i
+    - npm run test
+  # Defines the names of branches and tags the job runs for
+  only:
+    - develop
+# Deploy job
+deploy:
+  type: deploy
+  # Attach Deploy job to Deploy stage
+  stage: deploy
+  # Config to use our Runner with Executor Shell
+  tags:
+    - develop
+  script:
+    # Only copy changed files to project folder
+    - cp -r -u * $PROJECT_DIR
+    - cd $PROJECT_DIR
+    - echo "MONGO_URI"=$ENVIRONMENT_PRODUCTION_MONGO_URI > .env.production
+    - echo "JWT_SECRET"=$ENVIRONMENT_PRODUCTION_JWT_SECRET >> .env.production
+    - echo "PUBLIC_URL"=$PUBLIC_URL >> .env.production
+    - npm i
+    # Restart NodeJS service
+    - npm run stop
+    - npm run start
+  only:
+    - develop
